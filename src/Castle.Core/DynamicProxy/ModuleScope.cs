@@ -20,6 +20,7 @@ namespace Castle.DynamicProxy
 	using System.Reflection;
 	using System.Reflection.Emit;
 	using System.Resources;
+	using System.Security;
 
 	using Castle.Core.Internal;
 	using Castle.DynamicProxy.Generators;
@@ -363,6 +364,7 @@ namespace Castle.DynamicProxy
 							GetType());
 					throw new ArgumentException(message, e);
 				}
+                AddPartiallyTrustedCallersAttribute(assemblyBuilder);
 				var module = assemblyBuilder.DefineDynamicModule(moduleName, moduleName, false);
 				return module;
 			}
@@ -372,13 +374,30 @@ namespace Castle.DynamicProxy
 				var assemblyBuilder = AppDomain.CurrentDomain.DefineDynamicAssembly(
 					assemblyName,
 					AssemblyBuilderAccess.Run);
-
+                AddPartiallyTrustedCallersAttribute(assemblyBuilder);
 				var module = assemblyBuilder.DefineDynamicModule(moduleName, false);
 				return module;
 			}
 		}
 
-		private AssemblyName GetAssemblyName(bool signStrongName)
+        private static void AddPartiallyTrustedCallersAttribute(AssemblyBuilder assemblyBuilder)
+        {
+            if (CurrentAssemblyHasAllowPartiallyTrustedCallersAttribute())
+            {
+                assemblyBuilder.SetCustomAttribute(
+                    new CustomAttributeBuilder(
+                        typeof(AllowPartiallyTrustedCallersAttribute)
+                            .GetConstructor(Type.EmptyTypes),
+                        new object[0]));
+            }
+        }
+
+	    private static bool CurrentAssemblyHasAllowPartiallyTrustedCallersAttribute()
+	    {
+	        return Assembly.GetExecutingAssembly().GetCustomAttributes(typeof(AllowPartiallyTrustedCallersAttribute), true).Length > 0;
+	    }
+
+	    private AssemblyName GetAssemblyName(bool signStrongName)
 		{
 			var assemblyName = new AssemblyName
 			{
